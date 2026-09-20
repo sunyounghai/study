@@ -1,15 +1,21 @@
 """
 스칼라 칼만 필터 (숫자 하나를 추정)
+
+문제)
+노이즈가 낀 센서 값 여러 개를 보고 실제 값이 얼마인지 추정을 하고 싶음
+ex) 가만히 서 있는 선수의 실제 x의 위치가 10m이지만 
+영상에서 측정한 값은 매번 10.3, 8.1, 11.7 .. 처럼 흔들림
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 # 아래 숫자 바꿔서 테스트
 TRUE_VALUE = 10.0 # 진짜 값 (원래 모른다고 가정)
 R_STD = 2.0 # 측정 노이즈 표준편차 (클수록 측정값이 넓게 흩어짐)
 Q = 0.0 # 진짜 값이 변할 수 있는 정도 (0: 값은 고정이라고 가정)
 INIT_X = 0.0 # 처음 추정값
-INIT_P = 100.0 # 처음 추정에 대한 불확실성
+INIT_P = 100.0 # 처음 추정에 대한 불확실성 (클수록 처음 추정을 못 믿음)
 N_STEPS = 30 # 측정 횟수
 SEED = 0 # 난수 시드
 JUMP_AT = None # None이면 값이 안 변함
@@ -39,3 +45,24 @@ for k, z in enumerate(measurements, start=1):
     K_list.append(K)
     running_mean = measurements[:k].mean() # 비교용 (지금까지 측정값의 단순 평균)
     print(f"{k:>4} {z:>9.2f} {K:>8.3f} {x:>9.2f} {P:>11.3f} {running_mean:>13.2f}")
+
+# 그래프
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+steps = np.arange(1, N_STEPS + 1)
+
+axes[0].plot(steps, true_values, "k-", lw=2, label="true value")
+axes[0].plot(steps, measurements, "o", color="tab:red", alpha=0.5, label="measurement z")
+axes[0].plot(steps, est_list, "-", color="tab:blue", lw=2, label="Kalman estimate x")
+axes[0].set_xlabel("step")
+axes[0].set_ylabel("value")
+axes[0].set_title("Estimate vs measurement")
+axes[0].legend()
+
+axes[1].plot(steps, K_list, "o-", color="tab:green")
+axes[1].set_ylim(0, 1.05)
+axes[1].set_xlabel("step")
+axes[1].set_ylabel("Kalman gain K")
+axes[1].set_title("K = how much we trust the new measurement")
+
+fig.tight_layout()
+fig.savefig("01_scalar.png", dpi=120)
