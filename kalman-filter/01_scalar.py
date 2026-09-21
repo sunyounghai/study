@@ -46,6 +46,11 @@ for k, z in enumerate(measurements, start=1):
     running_mean = measurements[:k].mean() # 비교용 (지금까지 측정값의 단순 평균)
     print(f"{k:>4} {z:>9.2f} {K:>8.3f} {x:>9.2f} {P:>11.3f} {running_mean:>13.2f}")
 
+# RMS 오차 (실제 값과의 차이)
+est_arr = np.array(est_list)
+print(f"\n측정값 RMS 오차: {np.sqrt(np.mean((measurements - true_values) ** 2)):.2f}")
+print(f"추정값 RMS 오차: {np.sqrt(np.mean((est_arr - true_values) ** 2)):.2f}")
+
 # 그래프
 fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 steps = np.arange(1, N_STEPS + 1)
@@ -65,4 +70,4 @@ axes[1].set_ylabel("Kalman gain K")
 axes[1].set_title("K = how much we trust the new measurement")
 
 fig.tight_layout()
-fig.savefig("01_scalar.png", dpi=120)
+fig.savefig(f"results/01_Q{Q}_R{R_STD}_jump{JUMP_AT}_seed{SEED}.png", dpi=120)
