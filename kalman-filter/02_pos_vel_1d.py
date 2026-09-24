@@ -2,6 +2,7 @@
 1차원 위치+속도 칼만 필터
 """
 import numpy as np
+import matplotlib.pyplot as plt
 
 # 아래 숫자 바꿔서 테스트
 DT = 0.1 # 측정 간격(초)
@@ -75,3 +76,25 @@ rmse_kf = np.sqrt(np.mean((est_vel_arr[5:] - true_vel[5:]) ** 2))
 rmse_naive = np.sqrt(np.nanmean((naive_arr[5:] - true_vel[5:]) ** 2))
 print(f"\n속도 오차(RMSE, 처음 5스텝 제외): 미분 {rmse_naive:.2f} m/s   vs   칼만 {rmse_kf:.2f} m/s")
 
+# 그래프
+t = np.arange(N_STEPS) * DT
+fig, axes = plt.subplots(1, 2, figsize=(13, 4.5))
+
+axes[0].plot(t, true_pos, "k-", lw=2, label="true position")
+axes[0].plot(t, measured_pos, "o", color="tab:red", alpha=0.5, label="measured position")
+axes[0].plot(t, est_pos, "-", color="tab:blue", lw=2, label="Kalman estimate")
+axes[0].set_xlabel("time [s]")
+axes[0].set_ylabel("position [m]")
+axes[0].set_title("Position (the only thing we measure)")
+axes[0].legend()
+
+axes[1].plot(t, true_vel, "k-", lw=2, label="true velocity")
+axes[1].plot(t, naive_arr, "-", color="tab:red", alpha=0.5, label="from differencing measurements")
+axes[1].plot(t, est_vel_arr, "-", color="tab:blue", lw=2, label="Kalman estimate (never measured!)")
+axes[1].set_xlabel("time [s]")
+axes[1].set_ylabel("velocity [m/s]")
+axes[1].set_title("Velocity (estimated, not measured)")
+axes[1].legend(fontsize=8)
+
+fig.tight_layout()
+fig.savefig(f"results/02_sigA{SIGMA_A}_R{R_STD}_change{CHANGE_AT}_newvel{NEW_VEL}_seed{SEED}.png", dpi=120)
