@@ -17,3 +17,32 @@
 - CNN 기반 방법이 성능을 크게 개선했지만 여전히 다음과 같은 문제가 있다.
     - **작은 공 검출 문제:** 스포츠 공은 영상에서 매우 작기 때문에 정확한 위치를 검출하기 어렵고, 공 픽셀과 배경 픽셀의 비율이 극단적으로 불균형하다. 기존 연구는 focal loss, combo loss, hard negative mining 등의 방법을 사용해 왔으며 작은 객체를 표현하려면 고해상도 feature가 중요하다.    
     - **Temporal consistency 문제:** 기존 방법은 몇 프레임씩 묶어서 공의 움직임을 보지만, 프레임 묶음 간의 공 위치를 지속적으로 추적하지 않는다. 따라서 앞 구간에서 찾은 공의 위치와 비교해 현재 검출 결과가 자연스럽게 이어지는지 확인하기 어렵고, 공 위치가 갑자기 엉뚱한 곳으로 튀는 오검출이 발생할 수 있다.
+
+## 문제 정의
+
+- **Input:** 연속된 N개 프레임을 채널 방향으로 이어 붙인 텐서 HxWx3N (3.1절)
+    - 실험 설정은 N=3, 각 프레임을 288x512로 resize → 288x512x9 (5.2절)
+    - 원본 데이터셋 해상도는 HD/FHD 범위 (Table 1)
+
+- **Output:** 입력과 같은 spatial resolution의 heatmap N장, HxWxN (3.1절)
+    - N=3이므로 288x512 heatmap 3장 (5.2절)
+    - 입력 프레임 하나당 heatmap 하나씩 대응하는 MIMO 구조
+        - 단, 각 heatmap은 입력된 N개 프레임의 정보를 함께 사용해 생성됨
+    - 모델 출력은 heatmap까지이며, 공 좌표는 inference 단계의 후처리로 계산
+    - heatmap → 0.5 threshold → blob 검출 → 각 blob의 위치·confidence 계산 → 후보 선택
+    - WASB의 CoH에서는 heatmap 값의 weighted center를 위치로 사용하고, heatmap 값의 합을 confidence로 사용
+    - 결과: 프레임당 공 좌표 (x,y) 최대 1개
+
+- **Task:** 각 프레임에서 공의 (x,y) 좌표를 검출하고, inference 단계에서 temporal consistency를 고려해 연속적인 ball trajectory를 얻음
+    - **추적 방식: Online Tracking (3.3절)**
+        - 직전 3프레임의 공 위치로 local motion model(등가속도, 식 4)을 이용해 t+1 위치 예측
+        - 예측 위치와 너무 먼 detection candidate를 제거
+        - 남은 후보 중 confidence가 가장 높은 후보를 선택
+        - Kalman filter와 particle filter는 성능 향상이 없어 사용하지 않음
+    - Step=3 기준 5개 데이터셋 중 4개에서 30 FPS 이상으로, 실시간 처리 가능한 수준 (5.3절 / Table 2)
+
+- **Assumption / Limitation (5.5절)**
+    - 프레임당 공은 최대 1개 (여러 공을 동시에 사용하는 종목에는 적용 불가)
+    - 고정 카메라와 카메라가 움직이는 영상 모두 적용 가능
+    - 해상도와 FPS에 이론적 제한은 없지만, 검증 범위는 HD/FHD 및 25~30 FPS
+    - 공 위치를 bounding box가 아닌 중심점 (x,y)으로 표현 (3장 각주)
