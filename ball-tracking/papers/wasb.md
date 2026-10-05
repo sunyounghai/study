@@ -30,19 +30,46 @@
         - 단, 각 heatmap은 입력된 N개 프레임의 정보를 함께 사용해 생성됨
     - 모델 출력은 heatmap까지이며, 공 좌표는 inference 단계의 후처리로 계산
     - heatmap → 0.5 threshold → blob 검출 → 각 blob의 위치·confidence 계산 → 후보 선택
-    - WASB의 CoH에서는 heatmap 값의 weighted center를 위치로 사용하고, heatmap 값의 합을 confidence로 사용
+    - WASB의 CoH에서는 blob 내부의 heatmap 값을 가중치로 사용해 weighted center를 공 위치로 계산하고, heatmap 값의 합을 confidence로 사용
     - 결과: 프레임당 공 좌표 (x,y) 최대 1개
 
 - **Task:** 각 프레임에서 공의 (x,y) 좌표를 검출하고, inference 단계에서 temporal consistency를 고려해 연속적인 ball trajectory를 얻음
     - **추적 방식: Online Tracking (3.3절)**
-        - 직전 3프레임의 공 위치로 local motion model(등가속도, 식 4)을 이용해 t+1 위치 예측
+        - 직전 3프레임(t, t-1, t-2)의 공 위치로 local motion model(등가속도, 식 4)을 이용해 t+1 위치 예측
         - 예측 위치와 너무 먼 detection candidate를 제거
         - 남은 후보 중 confidence가 가장 높은 후보를 선택
         - Kalman filter와 particle filter는 성능 향상이 없어 사용하지 않음
-    - Step=3 기준 5개 데이터셋 중 4개에서 30 FPS 이상으로, 실시간 처리 가능한 수준 (5.3절 / Table 2)
+    - Step=3(3장씩 겹치지 않게 묶어 처리) 기준 5개 데이터셋 중 4개에서 30 FPS 이상으로, 실시간 처리 가능한 수준 (5.3절 / Table 2)
 
 - **Assumption / Limitation (5.5절)**
     - 프레임당 공은 최대 1개 (여러 공을 동시에 사용하는 종목에는 적용 불가)
     - 고정 카메라와 카메라가 움직이는 영상 모두 적용 가능
     - 해상도와 FPS에 이론적 제한은 없지만, 검증 범위는 HD/FHD 및 25~30 FPS
     - 공 위치를 bounding box가 아닌 중심점 (x,y)으로 표현 (3장 각주)
+
+## 핵심 아이디어
+
+### 1. 고해상도 특징 추출 (High-Resolution Feature Extraction, 3.1절)
+
+- **기존 한계:**
+    - 기존 방법(DeepBall, TrackNet 등)의 encoder-decoder 방식은 의미 정보가 풍부하지만 spatial resolution이 낮은 decoder feature와 이를 보완하기 위한 encoder intermediate feature를 결합해 heatmap을 만든다.
+    - 그러나 결합되는 feature들이 각각 **높은 spatial resolution과 풍부한 semantic information을 동시에 충분히 갖지 못한다**는 한계가 있다.
+    - 스포츠 공처럼 매우 작은 객체를 정확히 검출하려면 두 정보를 모두 갖는 feature representation이 중요하다.
+
+- **WASB의 방법:**
+    - **HRNet의 고해상도 feature extraction 방식** 사용: 여러 해상도의 branch를 병렬로 유지하고 정보를 반복적으로 교환해, spatial resolution을 유지하면서 semantic information이 풍부한 feature를 얻음 (Figure 2)
+    - small HRNet 설계를 따름(경량 HRNet, 파라미터 약 1.5M)
+    - 4개 stage로 구성: stage가 진행될수록 더 낮은 해상도의 branch를 하나씩 추가하고, 각 stage에서 해상도 간 정보를 교환하는 multi-resolution fusion 수행
+        - 고해상도 branch: 세밀한 spatial information 유지
+        - 저해상도 branch: 넓은 영역의 semantic information 확보
+    - 원래 HRNet은 stem에서 입력 해상도를 1/4로 줄이지만, WASB는 stem의 stride를 제거해 더 높은 해상도의 feature를 HRMs(High-Resolution Modules)에 전달 (Figure 3)
+    - 대신 stride 제거로 계산량이 증가하며 inference 속도가 감소함
+    - WASB는 성능과 효율의 균형을 고려해 Figure 3(c)를 기본 설정으로 사용
+
+- **효과 (Table 3, 축구 기준):**
+    - stem 구조 (a) → (b) → (c)
+        - F1: 81.7 → 86.4 → 88.3
+        - AP: 71.7 → 79.0 → 83.6
+        - FPS: 85.7 → 76.7 → 55.7
+    - 즉, intermediate feature의 spatial resolution을 높일수록 SBDT 성능은 좋아지지만 inference 속도는 감소함
+    - 다른 제안 기법을 추가하지 않은 상태에서도 기존 최고 방법(TrackNetV2, F1 86.6)을 넘어 F1 87.3을 달성 (Table 4)
