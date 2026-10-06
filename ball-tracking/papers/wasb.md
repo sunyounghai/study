@@ -73,3 +73,25 @@
         - FPS: 85.7 → 76.7 → 55.7
     - 즉, intermediate feature의 spatial resolution을 높일수록 SBDT 성능은 좋아지지만 inference 속도는 감소함
     - 다른 제안 기법을 추가하지 않은 상태에서도 기존 최고 방법(TrackNetV2, F1 86.6)을 넘어 F1 87.3을 달성 (Table 4)
+
+### 2. 위치 인지 학습 (Position-Aware Model Training, 3.2절)
+
+- **기존 한계:** 기존 방법은 정답 공 위치에서 거리 d 이내의 픽셀을 모두 1, 나머지를 0으로 만드는 binary GT map(식 1)으로 학습한다.
+    - 정답 위치 주변(반경 d)의 픽셀이 모두 같은 값 1을 가지므로, **정확한 공 위치 정보가 모호해지고 모델이 exact ball position에 덜 민감해진다.**
+
+- **WASB의 방법:** 
+    - 중심에서 멀어질수록 값이 작아지는 **real-valued GT map**을 사용해 공의 정확한 위치 정보를 더 세밀하게 표현 (식 2, Figure 4)
+        - 실험 설정: d=2.5, c_min=0.7 → 반경 안의 값이 가장자리 0.7 ~ 중심 1 (5.2절)
+    - **Quality Focal Loss**로 학습 (식 3)
+        - GT가 binary인 경우에는 기존 focal loss와 동일
+    - **HLSM (Hard-to-Localize Sample Mining):**
+        - real-valued GT를 모든 학습 데이터에 적용해도 통계적으로 성능 향상이 없었기 때문에 **위치를 찾기 어려운 샘플에만 적용**
+        - 학습 중 전체 training sequence를 inference하여 예측 위치가 GT 위치에서 먼 이미지를 hard-to-localize sample로 선정
+        - 선정된 이미지의 GT를 real-valued GT로 바꾸고 남은 epoch 동안 추가 학습
+        - 실험에서는 총 30 epoch 중 **epoch 20 시작 시점에 HLSM을 한 번 수행** (5.2절)
+        - 복잡한 배경 때문에 흐릿했던 heatmap이 더 선명해지고, 공 위치를 더 정확하게 찾을 수 있음 (Figure 5)
+        
+- **효과 (Table 4, 축구 기준):**
+    - HLSM 추가 시 F1: 87.3 → 87.8
+    - AP: 80.1 → 81.1
+    - 학습 단계에서만 적용되므로 inference 속도에는 영향 없음
