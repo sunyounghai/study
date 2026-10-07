@@ -90,8 +90,29 @@
         - 선정된 이미지의 GT를 real-valued GT로 바꾸고 남은 epoch 동안 추가 학습
         - 실험에서는 총 30 epoch 중 **epoch 20 시작 시점에 HLSM을 한 번 수행** (5.2절)
         - 복잡한 배경 때문에 흐릿했던 heatmap이 더 선명해지고, 공 위치를 더 정확하게 찾을 수 있음 (Figure 5)
-        
+
 - **효과 (Table 4, 축구 기준):**
     - HLSM 추가 시 F1: 87.3 → 87.8
     - AP: 80.1 → 81.1
     - 학습 단계에서만 적용되므로 inference 속도에는 영향 없음
+
+### 3. 시간적 일관성을 고려한 추론 (Inference, 3.3절)
+
+- **기존 한계:** 기본 inference는 각 heatmap에서 찾은 blob의 기하학적 중심을 공 위치로, blob 크기를 confidence로 사용하고, 해당 이미지 안에서 confidence가 가장 높은 후보를 선택한다.
+    - 따라서 공과 비슷한 물체가 함께 검출되면 시간적 정보 없이 현재 이미지의 confidence만으로 잘못된 후보를 선택할 수 있다.
+
+- **WASB의 방법:**
+    - **CoH (Center of Heatmap):** blob 내부의 heatmap 값을 가중치로 사용해 weighted center를 공 위치로 계산하고, heatmap 값의 합을 confidence로 사용
+    - **Online Tracking:** 이전 프레임들의 공 위치로 현재 공의 예상 위치를 계산하고, 예상 위치에서 너무 먼 detection candidate를 제거한 뒤 남은 후보 중 confidence가 가장 높은 후보를 선택
+        - Temporal information은 새로운 위치를 직접 생성하기보다는 **일관되지 않은 detection candidate를 필터링하는 데 사용**
+        - Kalman filter와 particle filter는 성능 향상이 없어 사용하지 않음
+    - **Oversampling:** 같은 이미지를 서로 다른 MIMO 프레임 조합에 포함시켜 다양한 detection candidate를 얻고, 이를 모두 다음 후보 선택 단계에서 활용
+        - Step=1에서는 입력 프레임 조합을 한 프레임씩 이동시키며 oversampling
+
+- **효과 (Table 4):**
+    - CoH (축구): F1 87.8 → 88.3, AP 81.1 → 83.6
+    - Online Tracking:
+        - Soccer: F1 88.3 → 88.3, AP 83.6 → 83.6
+        - Tennis: F1 93.9 → 94.0, AP 90.8 → 91.0
+        - Badminton: F1 91.6 → 91.6, AP 88.5 → 88.5
+    - Step=1 (축구): AP 83.6 → 86.2로 향상되지만 F1은 88.3 → 88.2로 거의 변화 없고, FPS는 55.7 → 23.6으로 감소 (Table 2)
