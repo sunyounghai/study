@@ -117,6 +117,28 @@
         - Badminton: F1 91.6 → 91.6, AP 88.5 → 88.5
     - Step=1 (축구): AP 83.6 → 86.2로 향상되지만 F1은 88.3 → 88.2로 거의 변화 없고, FPS는 55.7 → 23.6으로 감소 (Table 2)
 
+## 전체 Pipeline
+
+### Inference
+
+`Input → Preprocessing → Model → Post-processing → Output`
+
+- **Input:** 연속된 3개 프레임
+- **Preprocessing:**
+    - 각 프레임을 `288x512`로 resize
+    - 3개 프레임을 채널 방향으로 연결해 `9x288x512 (CxHxW)` 입력 텐서 생성
+    - Step=3이면 3프레임씩 겹치지 않게 구성하고, Step=1이면 한 프레임씩 이동하며 구성 (슬라이딩 윈도우)
+- **Model:** 
+    - Stem(stride 제거) → HRMs(4 stages, small HRNet)
+    - 출력: `288x512` heatmap 3장
+    - 자세한 내용은 핵심 아이디어 1 참고
+- **Post-processing:**
+    - Heatmap thresholding(`0.5`) → 이진화 → blob 검출
+    - CoH를 이용해 각 blob의 위치와 confidence 계산
+    - Online Tracking으로 이전 프레임들의 위치로 예측한 현재 위치와 동떨어진 후보 제거
+    - 남은 후보 중 confidence가 가장 높은 후보 선택
+    - 자세한 내용은 핵심 아이디어 3 참고
+- **Output:** 프레임별 공 좌표 `(x,y)` 최대 1개. 시간 순서대로 연결해 ball trajectory 구성
 
 ## 실험
 
