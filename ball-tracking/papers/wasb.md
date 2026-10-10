@@ -140,6 +140,26 @@
     - 자세한 내용은 핵심 아이디어 3 참고
 - **Output:** 프레임별 공 좌표 `(x,y)` 최대 1개. 시간 순서대로 연결해 ball trajectory 구성
 
+### Training
+
+`Input + GT 좌표 → GT map 생성 → Model → Loss 계산 → 파라미터 업데이트`
+
+- **GT map 생성:** 
+    - 정답 공 좌표를 이용해 binary GT map 생성 (`d=2.5`)
+    - HLSM 적용 후 선정된 어려운 샘플의 GT map을 real-valued GT map으로 교체 (`c_min=0.7`)
+- **Model:** Inference와 동일한 모델 구조 사용
+- **Loss:** Quality Focal Loss
+- **HLSM (Hard-to-Localize Sample Mining):** 
+    - Epoch 20 시작 시점에 한 번, 학습 데이터 전체를 추론해 예측 위치가 정답 위치에서 먼 샘플 선정
+    - 선정된 샘플에 real-valued GT map을 적용하고 남은 epoch 동안 학습
+    - 자세한 내용은 핵심 아이디어 2 참고
+- **학습 설정 (5.2절):** 
+    - 초기 가중치: 사전학습 없이 처음부터 학습(from scratch)
+    - Optimizer: Adam
+    - Epoch: 30
+    - Batch size: 8
+    - GPU: NVIDIA V100 4장
+
 ## 실험
 
 ### 데이터셋 (4.1절, Table 1)
