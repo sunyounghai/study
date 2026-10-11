@@ -203,3 +203,26 @@
 - 종목마다 공의 이동 속도와 영상 촬영 방식이 크게 다름
 - 특히 농구는 큰 `disp.`와 카메라 움직임 때문에 빠른 공 움직임과 움직이는 카메라에 대한 대응력을 평가하기에 적합해 보임
 - 축구 데이터셋은 학습/테스트가 같은 경기 기반으로 보이므로 **다른 경기나 경기장에서의 일반화 성능은 별도로 검증할 필요가 있음**
+
+### 비교 대상 (4.2절, 부록 A)
+
+기존 SBDT 방법들을 저자들이 재구현하여 5개 스포츠 데이터셋에서 비교했다.
+
+| 방법 | 원래 적용 종목 | 입력 프레임 | 구조 | Loss | 파라미터 |
+|---|---|---:|---|---|---:|
+| DeepBall | 축구 | 1 | 작은 CNN, multi-scale feature 결합 | CE + hard negative mining | 0.1M |
+| DeepBall-Large | 저자 변형 | 1 | DeepBall의 feature 채널 확장 | CE + hard negative mining | 1.0M |
+| BallSeg | 농구 | 2 | ICNet 기반 | Focal Loss (저자 수정) | 12.7M |
+| TrackNetV2 | 배드민턴 | 3 | U-Net 기반, MIMO | Focal Loss | 11.3M |
+| ResTrackNetV2 | 저자 변형 | 3 | TrackNetV2 기반, residual connection 추가 및 채널 축소 | Focal Loss | 1.2M |
+| MonoTrack | 배드민턴 | 3 | TrackNetV2 변형, 일부 convolution 제거 및 skip connection | Combo Loss | 2.9M |
+| **WASB** | 범용 | 3 | Small HRNet, stem stride 제거 | Quality Focal Loss | 1.5M |
+
+- **재구현 이유:** 기존 방법 중 공개 구현이 없거나 특정 데이터셋에 종속된 경우가 있어, 여러 종목에서 비교할 수 있도록 재구현함
+- **저자 수정 사항:**
+    - BallSeg: 원래 설정으로 학습하는 데 어려움이 있어 Loss와 optimizer 등을 수정함
+    - DeepBall-Large, ResTrackNetV2: 저자들이 비교를 위해 만든 변형 모델
+- **재구현 결과 검증:**
+    - TrackNetV2는 배드민턴 Accuracy가 재구현 85.6%, 원 논문 85.2%로 유사함
+    - 나머지 5개 방법은 원래 논문과 직접 비교하기 어려운 이유가 있어 재구현 결과의 일치 여부를 검증하지 못함
+    - 이유: DeepBall의 원본 라벨 문제, BallSeg의 구체적인 구조 및 공개 벤치마크 부재, MonoTrack의 실험 절차 미기재, 저자 변형 모델의 공식 구현 부재
