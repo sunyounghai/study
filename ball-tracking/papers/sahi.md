@@ -166,3 +166,30 @@
 - **효과가 제한적일 수 있는 경우:** 클로즈업 장면처럼 공이 이미 충분한 픽셀 크기로 표현되는 경우. 이때는 검출 성능 개선보다 패치 추론에 따른 연산 비용이 더 클 수 있다.
 - **실시간성 요구:** 실시간 중계 분석에서는 패치 추론으로 늘어나는 처리 시간이 주요 제약이 될 수 있다. 사후 분석은 상대적으로 시간 제약이 적지만, 전체 영상 처리 시간이 늘어나는 만큼 운영 비용을 고려해야 한다.
 - **판단 기준:** 영상 해상도 자체보다 모델 입력 기준으로 공이 몇 픽셀 크기로 표현되는지가 중요하다. 실제 영상에서 공의 픽셀 크기 분포를 먼저 확인하는 것이 좋다.
+
+### 라이선스
+
+- **SAHI:** 공식 GitHub 저장소의 라이선스는 MIT License다. 상업적 사용, 수정 및 배포가 가능하며, 배포 시 저작권 및 라이선스 고지를 유지해야 한다.
+- **검출 모델:** 함께 사용하는 검출 모델의 라이선스를 별도로 확인해야 한다.
+  - 예를 들어 Ultralytics YOLO는 AGPL-3.0과 Enterprise License를 제공한다.
+  - Ultralytics의 공식 라이선스 안내에 따르면 비공개 상업 제품이나 SaaS 등에 사용하는 경우 Enterprise License가 필요할 수 있다.
+- **가중치와 데이터셋:** 사전학습 가중치, 별도로 배포되는 모델 파일, 학습 데이터셋의 이용 조건도 각각 확인한다.
+- **최종 확인:** 실제 서비스의 배포 형태와 사용 범위를 기준으로 라이선스 조건을 검토한다.
+
+### 라이브러리 파라미터와 논문 개념의 대응
+
+| 논문 개념 | SAHI 파라미터 (`get_sliced_prediction`) |
+|---|---|
+| 패치 높이 | `slice_height` |
+| 패치 너비 | `slice_width` |
+| PO (패치 겹침) | `overlap_height_ratio`, `overlap_width_ratio` |
+| FI (원본 전체 추론) | `perform_standard_pred` |
+| 결과 병합 방식 | `postprocess_type` (`NMS`, `NMM`, `GREEDYNMM` 등) |
+| 매칭 기준 | `postprocess_match_metric` (`IOU`, `IOS`) |
+| 매칭 임계값 | `postprocess_match_threshold` |
+
+- `perform_standard_pred=True`이면 슬라이스 추론과 함께 원본 이미지 전체에 대한 일반 추론도 수행한다.
+- `postprocess_match_metric`은 검출 박스 간 중복 여부를 판단하는 기준이며, `postprocess_match_threshold`는 해당 기준에 적용하는 임계값이다.
+- 논문의 `T_m`과 `postprocess_match_threshold`는 개념적으로 대응하지만, 실제 결과를 비교할 때는 매칭 기준과 병합 알고리즘도 동일하게 맞춰야 한다.
+- 논문과 같은 조건으로 비교하려면 `postprocess_type="NMS"`, `postprocess_match_metric="IOU"`, `postprocess_match_threshold=0.5`로 설정한다. 라이브러리 기본값은 이와 다를 수 있으므로 명시적으로 지정한다.
+- SAHI 버전에 따라 기본값이나 지원 파라미터가 달라질 수 있으므로, 실제 프로젝트에서는 사용 버전을 고정하고 해당 버전의 API를 확인한다.
