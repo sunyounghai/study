@@ -46,3 +46,12 @@
 4. Results:  조사로 선정된 논문들의 소개와 설명
 5. Discussion: 수집 내용 요약 + 가장 가치 있는 정보에 대한 논의
 6. Conclusions: 리뷰를 통해 얻은 주요 발견, 연구의 기여
+
+## Related Work
+- Mishra, Chandra & Jaiswal	(2015)
+    - 여러 종목에서의 선수 추적 (2003~2014)
+    - 전통 기법만 다룸 (배경 제거, 파티클 필터, 특징 기반)
+
+- Burić, Pobar & Ivasic-Kos (2018a)
+    - 핸드볼 공 탐지, Mask R-CNN vs YOLOv2
+    -  한 종목, 구버전 모델, 실시간 용도에서 YOLO 선호
